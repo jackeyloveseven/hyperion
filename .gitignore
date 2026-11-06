@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments & virtualenvs
+.venv/
+venv/
+env/
+ENV/
+
+# Model checkpoints & weights (DO NOT COMMIT LARGE WEIGHTS)
+models/
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+
+# Data & generation outputs (DO NOT COMMIT DATASETS OR RAW EXPERIMENT RUNS)
+d_grand/
+outputs/
+results/
+data/
+sty/
+cnt/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+
+# Logs & temporary files
+*.log
+logs/
+.pytest_cache/
+.coverage
+htmlcov/
+tmp/
+temp/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyperion-style-transfer"
+version = "1.0.0"
+description = "Official implementation of Hyperion: A Training-Free Style Transfer Method on Diffusion Transformers (IEEE TPAMI)"
+readme = "README.md"
+authors = [
+    { name = "Yi Li" },
+    { name = "Chengyan Li" },
+    { name = "Zhirui Fang" },
+    { name = "Junchuan Zhang" },
+    { name = "Yan Luo" },
+    { name = "Yanqing Guo" },
+    { name = "Xuan Wang" },
+    { name = "Huaibo Huang" }
+]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: Apache Software License",
+]
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "numpy>=1.22.0",
+    "Pillow>=9.0.0",
+    "scipy>=1.9.0",
+    "tqdm>=4.64.0",
+]
+
+[project.optional-dependencies]
+eval = [
+    "open-clip-torch>=2.20.0",
+    "timm>=0.9.0",
+    "lpips>=0.1.4",
+]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hyperion*"]
