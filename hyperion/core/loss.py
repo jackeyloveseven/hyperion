@@ -122,4 +122,11 @@ def sliced_wasserstein_distance(
     x_sorted = torch.sort(x_proj, dim=1).values
     y_sorted = torch.sort(y_proj, dim=1).values
 
+    ly = y.shape[1]
+    if lx != ly:
+        target_len = max(lx, ly)
+        x_s = F.interpolate(x_sorted.transpose(1, 2), size=target_len, mode="linear", align_corners=False).transpose(1, 2)
+        y_s = F.interpolate(y_sorted.transpose(1, 2), size=target_len, mode="linear", align_corners=False).transpose(1, 2)
+        return (x_s - y_s).abs().mean()
+
     return (x_sorted - y_sorted).abs().mean()

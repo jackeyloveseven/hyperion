@@ -12,7 +12,7 @@ import torch.nn.functional as F
 
 
 def _matrix_sqrt(m: np.ndarray, eps: float = 1e-6) -> np.ndarray:
-    """Computes matrix square root with scipy if available, or numpy SVD/eigh."""
+    """Computes matrix square root with scipy if available, or numpy eigh."""
     try:
         from scipy import linalg
         covmean, _ = linalg.sqrtm(m, disp=False)
@@ -23,9 +23,11 @@ def _matrix_sqrt(m: np.ndarray, eps: float = 1e-6) -> np.ndarray:
             covmean = covmean.real
         return covmean
     except ImportError:
-        u, s, vh = np.linalg.svd(m)
-        s_sqrt = np.sqrt(np.maximum(s, 0.0))
-        return (u * s_sqrt) @ vh
+        # Exact square root for symmetric positive semi-definite matrix
+        sym = (m + m.T) / 2.0
+        w, v = np.linalg.eigh(sym)
+        w_clamped = np.sqrt(np.maximum(w, 0.0))
+        return (v * w_clamped) @ v.T
 
 
 def compute_dino_style_similarity(
@@ -108,6 +110,10 @@ def compute_frechet_distance(
     """
     Computes Frechet Inception Distance between two feature activation arrays.
 
+    Uses the mathematically exact symmetric positive semi-definite formulation
+    Tr((C1 C2)^(1/2)) = Tr((C1^(1/2) C2 C1^(1/2))^(1/2)) to guarantee real, calibrated,
+    and numerically stable values even without scipy installed.
+
     Args:
         act1: Activations of first set [N1, D].
         act2: Activations of second set [N2, D].
@@ -117,12 +123,27 @@ def compute_frechet_distance(
         Frechet distance.
     """
     m1, m2 = act1.mean(axis=0), act2.mean(axis=0)
-    c1, c2 = np.cov(act1, rowvar=False), np.cov(act2, rowvar=False)
+    c1 = np.atleast_2d(np.cov(act1, rowvar=False))
+    c2 = np.atleast_2d(np.cov(act2, rowvar=False))
 
     diff = m1 - m2
-    covmean = _matrix_sqrt(c1.dot(c2), eps=eps)
 
-    fid = float(diff.dot(diff) + np.trace(c1 + c2 - 2 * covmean))
+    try:
+        from scipy import linalg
+        covmean, _ = linalg.sqrtm(c1.dot(c2), disp=False)
+        if np.iscomplexobj(covmean):
+            covmean = covmean.real
+        covmean_tr = np.trace(covmean)
+    except ImportError:
+        # Exact symmetric formulation: Tr((C1 C2)^(1/2)) = sum(sqrt(eigvals(C1^(1/2) C2 C1^(1/2))))
+        w1, v1 = np.linalg.eigh((c1 + c1.T) / 2.0)
+        c1_sqrt = v1 @ np.diag(np.sqrt(np.maximum(w1, 0.0))) @ v1.T
+        k = c1_sqrt @ c2 @ c1_sqrt
+        k_sym = (k + k.T) / 2.0
+        wk, _ = np.linalg.eigh(k_sym)
+        covmean_tr = np.sum(np.sqrt(np.maximum(wk, 0.0)))
+
+    fid = float(diff.dot(diff) + np.trace(c1) + np.trace(c2) - 2.0 * covmean_tr)
     return max(0.0, fid)
 
 

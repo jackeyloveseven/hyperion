@@ -44,6 +44,17 @@ class TestLoss(unittest.TestCase):
         dist.backward()
         self.assertIsNotNone(x.grad)
 
+    def test_sliced_wasserstein_different_lengths(self):
+        torch.manual_seed(42)
+        x = torch.randn(2, 32, 16, requires_grad=True)
+        y = torch.randn(2, 48, 16)
+
+        dist = sliced_wasserstein_distance(x, y, n_projections=16)
+        self.assertGreater(dist.item(), 0)
+        dist.backward()
+        self.assertIsNotNone(x.grad)
+        self.assertFalse(torch.isnan(x.grad).any())
+
 
 if __name__ == "__main__":
     unittest.main()

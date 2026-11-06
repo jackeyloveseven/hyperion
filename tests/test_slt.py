@@ -59,6 +59,20 @@ class TestSLT(unittest.TestCase):
         self.assertEqual(out.shape, content.shape)
         self.assertFalse(torch.isnan(out).any())
 
+    def test_compute_latent_effective_rank(self):
+        from hyperion.core.slt import compute_latent_effective_rank
+        torch.manual_seed(42)
+
+        # Rank-2 latent matrix
+        low_rank = torch.randn(64, 2) @ torch.randn(2, 32)
+        r_low = compute_latent_effective_rank(low_rank.unsqueeze(0))
+        self.assertLessEqual(r_low, 2)
+
+        # Full-rank random latent
+        high_rank = torch.randn(1, 64, 32)
+        r_high = compute_latent_effective_rank(high_rank)
+        self.assertGreater(r_high, 10)
+
 
 if __name__ == "__main__":
     unittest.main()

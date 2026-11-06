@@ -48,6 +48,23 @@ def compute_layout_leakage_from_patches(
     s_out = compute_patch_self_similarity_matrix(patches_out)
     s_sty = compute_patch_self_similarity_matrix(patches_style)
 
+    if s_out.shape != s_sty.shape:
+        target_n = max(s_out.shape[0], s_sty.shape[0])
+        if s_out.shape[0] != target_n:
+            s_out = F.interpolate(
+                s_out.unsqueeze(0).unsqueeze(0),
+                size=(target_n, target_n),
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(0).squeeze(0)
+        if s_sty.shape[0] != target_n:
+            s_sty = F.interpolate(
+                s_sty.unsqueeze(0).unsqueeze(0),
+                size=(target_n, target_n),
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(0).squeeze(0)
+
     n = s_out.shape[0]
     tri = torch.triu_indices(n, n, offset=1, device=s_out.device)
 

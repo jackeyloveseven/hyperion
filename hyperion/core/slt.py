@@ -10,9 +10,47 @@ eliminating the early gradient budget waste on low-frequency color mismatch.
 """
 
 from typing import Literal, Optional
+import numpy as np
 import torch
 import torch.nn.functional as F
 from hyperion.core.sinkhorn import sinkhorn_normalize
+
+
+def compute_latent_effective_rank(
+    latent: torch.Tensor,
+    variance_threshold: float = 0.95,
+) -> int:
+    """
+    Computes the effective rank of a latent token distribution (cumulative covariance energy).
+
+    Used as the pre-screening filter disclosed in TPAMI Sec. 6 (Discussion) to detect
+    degenerate, near-uniform style references (e.g. sty04 with effective rank < 5)
+    before running optimal transport.
+
+    Args:
+        latent: Style latent tensor of shape [B, L, D] or [L, D].
+        variance_threshold: Cumulative energy threshold (default: 0.95).
+
+    Returns:
+        Effective rank integer r_95.
+    """
+    if latent.dim() == 3:
+        sl = latent[0].float()
+    else:
+        sl = latent.float()
+
+    sl_c = sl - sl.mean(dim=0, keepdim=True)
+    l_toks, d = sl_c.shape
+    c = sl_c.T @ sl_c / max(l_toks, 1)
+    c = (c + c.T) / 2.0
+    s = torch.linalg.eigvalsh(c + 1e-8 * torch.eye(d, device=sl.device))
+    s = torch.clamp(s, min=0.0).flip(0)
+    total_var = s.sum().item()
+    if total_var < 1e-8:
+        return 0
+    p = (s / total_var).cpu().numpy()
+    cum = np.cumsum(p)
+    return int(np.searchsorted(cum, variance_threshold) + 1)
 
 
 def sinkhorn_latent_transport(

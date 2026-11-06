@@ -47,24 +47,32 @@ def apply_layout_residual_suppression(
         k = ref_k_list[idx]
         v = ref_v_list[idx]
 
-        if txt_len > 0 and k.shape[2] > txt_len:
-            # Separate text prefix and image tokens
-            k_txt, k_img = k[:, :, :txt_len, :], k[:, :, txt_len:, :]
-            v_txt, v_img = v[:, :, :txt_len, :], v[:, :, txt_len:, :]
+        # Sequence dimension is dim -2 for both [B, H, L, D] and [B, L, D]
+        seq_dim = -2
+        seq_len = k.shape[seq_dim]
 
-            # Spatial mean over image tokens
-            k_mean = k_img.mean(dim=2, keepdim=True)
-            v_mean = v_img.mean(dim=2, keepdim=True)
+        if txt_len > 0 and seq_len > txt_len:
+            # Separate text prefix and image tokens
+            if k.dim() == 4:
+                k_txt, k_img = k[:, :, :txt_len, :], k[:, :, txt_len:, :]
+                v_txt, v_img = v[:, :, :txt_len, :], v[:, :, txt_len:, :]
+            else:
+                k_txt, k_img = k[:, :txt_len, :], k[:, txt_len:, :]
+                v_txt, v_img = v[:, :txt_len, :], v[:, txt_len:, :]
+
+            # Spatial mean over image tokens along sequence dimension
+            k_mean = k_img.mean(dim=seq_dim, keepdim=True)
+            v_mean = v_img.mean(dim=seq_dim, keepdim=True)
 
             # Attenuate position-dependent layout residual
             k_img_suppressed = k_mean + gamma_l * (k_img - k_mean)
             v_img_suppressed = v_mean + gamma_l * (v_img - v_mean)
 
-            out_k = torch.cat([k_txt, k_img_suppressed], dim=2)
-            out_v = torch.cat([v_txt, v_img_suppressed], dim=2)
+            out_k = torch.cat([k_txt, k_img_suppressed], dim=seq_dim)
+            out_v = torch.cat([v_txt, v_img_suppressed], dim=seq_dim)
         else:
-            k_mean = k.mean(dim=2, keepdim=True)
-            v_mean = v.mean(dim=2, keepdim=True)
+            k_mean = k.mean(dim=seq_dim, keepdim=True)
+            v_mean = v.mean(dim=seq_dim, keepdim=True)
             out_k = k_mean + gamma_l * (k - k_mean)
             out_v = v_mean + gamma_l * (v - v_mean)
 

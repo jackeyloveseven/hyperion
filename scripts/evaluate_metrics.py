@@ -44,6 +44,8 @@ def parse_args():
     parser.add_argument("--content", type=str, default=None, help="Path to content image (for I2I metrics)")
     parser.add_argument("--prompt", type=str, default=None, help="Text prompt (for CLIP-T)")
     parser.add_argument("--csd_weights", type=str, default=None, help="Path to CSD-CLIP checkpoint")
+    parser.add_argument("--eval_dino", action="store_true", help="Evaluate DINO-style similarity and DINO layout leakage")
+    parser.add_argument("--eval_gram", action="store_true", help="Evaluate VGG-19 Gram matrix distance")
     parser.add_argument("--device", type=str, default="cuda", help="Computation device")
     parser.add_argument("--save_csv", type=str, default=None, help="Path to output CSV file")
     parser.add_argument("--save_json", type=str, default=None, help="Path to output JSON file")
@@ -100,21 +102,98 @@ def main():
         print(f"  (Skipping CLIP metrics: {e})")
 
     # 3. CSD & SCH (if CSD model weights provided)
-    if args.csd_weights and Path(args.csd_weights).exists():
-        try:
-            from hyperion.metrics.csd import compute_csd_similarity
-            print("\n[Evaluating CSD metric]")
-            # User must supply CSD model path
-            csd = 0.65  # placeholder or load model if provided
-            results["CSD"] = round(csd, 4)
-            print(f"  * CSD (Style fidelity)       : {csd:.4f}")
+    if args.csd_weights:
+        csd_path = Path(args.csd_weights)
+        if csd_path.exists():
+            try:
+                import torch
+                from hyperion.metrics.csd import compute_csd_similarity
 
-            if "CLIP-I" in results:
-                sch = compute_style_content_harmonic(csd, results["CLIP-I"])
-                results["SCH"] = round(sch, 4)
-                print(f"  * Style-Content Harmonic(SCH): {sch:.4f}")
+                print("\n[Evaluating CSD metric]")
+                csd_obj = torch.load(str(csd_path), map_location=args.device, weights_only=False)
+                if isinstance(csd_obj, torch.nn.Module):
+                    csd_model = csd_obj.eval()
+                elif isinstance(csd_obj, dict) and "model" in csd_obj and isinstance(csd_obj["model"], torch.nn.Module):
+                    csd_model = csd_obj["model"].eval()
+                else:
+                    raise TypeError("CSD model file must contain a PyTorch Module or saved model object.")
+
+                csd = compute_csd_similarity(csd_model, args.output, args.style, device=args.device)
+                results["CSD"] = round(csd, 4)
+                print(f"  * CSD (Style fidelity)       : {csd:.4f}")
+
+                if "CLIP-I" in results:
+                    sch = compute_style_content_harmonic(csd, results["CLIP-I"])
+                    results["SCH"] = round(sch, 4)
+                    print(f"  * Style-Content Harmonic(SCH): {sch:.4f}")
+            except Exception as e:
+                print(f"  (Skipping CSD metric: {e})")
+        else:
+            print(f"  (Warning: CSD weights file not found: {csd_path})")
+
+    # 4. DINOv2 metrics (if requested)
+    if args.eval_dino:
+        try:
+            import timm
+            import torch
+            from torchvision import transforms
+            from PIL import Image
+            from hyperion.metrics.perceptual import compute_dino_style_similarity
+            from hyperion.metrics.layout_leakage import extract_dinov2_features, compute_layout_leakage_from_patches
+
+            print("\n[Evaluating DINOv2 metrics (vit_base_patch14_dinov2)]")
+            dino = timm.create_model("vit_base_patch14_dinov2.lvd142m", pretrained=True, num_classes=0).to(args.device).eval()
+
+            def _dino_load(img_path):
+                im = Image.open(img_path).convert("RGB")
+                t = transforms.ToTensor()(im).unsqueeze(0).to(args.device)
+                t = torch.nn.functional.interpolate(t, size=(518, 518), mode="bilinear", align_corners=False)
+                mean = torch.tensor([0.485, 0.456, 0.406], device=args.device).view(1, 3, 1, 1)
+                std = torch.tensor([0.229, 0.224, 0.225], device=args.device).view(1, 3, 1, 1)
+                return (t - mean) / std
+
+            cls_out, patches_out = extract_dinov2_features(dino, _dino_load(args.output))
+            cls_sty, patches_sty = extract_dinov2_features(dino, _dino_load(args.style))
+
+            dino_sim = compute_dino_style_similarity(cls_out, cls_sty)
+            results["DINO_Style_Sim"] = round(dino_sim, 4)
+            print(f"  * DINO-Style Similarity      : {dino_sim:.4f}")
+
+            leakage = compute_layout_leakage_from_patches(patches_out, patches_sty)
+            results["DINO_Layout_Leakage"] = round(leakage, 4)
+            print(f"  * DINO Layout Leakage (LL)   : {leakage:.4f} (Lower = less leakage)")
         except Exception as e:
-            print(f"  (Skipping CSD metric: {e})")
+            print(f"  (Skipping DINO metrics: {e})")
+
+    # 5. VGG-19 Gram distance (if requested)
+    if args.eval_gram:
+        try:
+            import torch
+            from torchvision.models import vgg19, VGG19_Weights
+            from torchvision import transforms
+            from PIL import Image
+            from hyperion.metrics.perceptual import extract_vgg_gram_matrices, compute_gram_distance
+
+            print("\n[Evaluating VGG-19 Gram distance]")
+            vgg = vgg19(weights=VGG19_Weights.IMAGENET1K_V1).features.to(args.device).eval()
+            for prm in vgg.parameters():
+                prm.requires_grad_(False)
+
+            def _vgg_load(img_path):
+                im = Image.open(img_path).convert("RGB")
+                t = transforms.ToTensor()(im).unsqueeze(0).to(args.device)
+                t = torch.nn.functional.interpolate(t, size=(224, 224), mode="bilinear", align_corners=False)
+                mean = torch.tensor([0.485, 0.456, 0.406], device=args.device).view(1, 3, 1, 1)
+                std = torch.tensor([0.229, 0.224, 0.225], device=args.device).view(1, 3, 1, 1)
+                return (t - mean) / std
+
+            grams_out = extract_vgg_gram_matrices(vgg, _vgg_load(args.output))
+            grams_sty = extract_vgg_gram_matrices(vgg, _vgg_load(args.style))
+            gram_dist = compute_gram_distance(grams_out, grams_sty)
+            results["Gram_Distance"] = round(gram_dist, 4)
+            print(f"  * VGG-19 Gram Distance       : {gram_dist:.4f} (Lower = closer style)")
+        except Exception as e:
+            print(f"  (Skipping Gram metric: {e})")
 
     # Summary Output
     print("\n" + "=" * 65)

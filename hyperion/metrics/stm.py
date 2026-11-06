@@ -37,11 +37,11 @@ def _sobel(img: np.ndarray, axis: int) -> np.ndarray:
         return ndi.sobel(img, axis=axis)
     except ImportError:
         if axis == 1:
-            k_row = np.array([-1, 0, 1], dtype=np.float32)
+            k_row = np.array([1, 0, -1], dtype=np.float32)
             k_col = np.array([1, 2, 1], dtype=np.float32)
         else:
             k_row = np.array([1, 2, 1], dtype=np.float32)
-            k_col = np.array([-1, 0, 1], dtype=np.float32)
+            k_col = np.array([1, 0, -1], dtype=np.float32)
 
         padded = np.pad(img, 1, mode="reflect")
         tmp = np.apply_along_axis(lambda m: np.convolve(m, k_row, mode="valid"), axis=1, arr=padded)

@@ -35,8 +35,8 @@ def feature_adain(
     c_f = content.float()
     s_f = style.float()
 
-    # Determine token dimension: dim -2 (L) if 3D/4D
-    token_dim = -2 if c_f.dim() >= 3 else 1
+    # Determine token dimension: dim -2 (L) for [L, D], [B, L, D], and [B, 1, L, D]
+    token_dim = -2
 
     c_mean = c_f.mean(dim=token_dim, keepdim=True)
     c_std = torch.clamp(c_f.std(dim=token_dim, keepdim=True), min=eps)
@@ -61,23 +61,25 @@ def adain_1d(
     latent z_0 to the clean style latent z_s before VAE decoding.
 
     Args:
-        source_lat: Generated latent z_0 of shape [B, L, D].
-        target_lat: Clean reference style latent z_s of shape [B, Ls, D].
+        source_lat: Generated latent z_0 of shape [B, L, D] or [L, D].
+        target_lat: Clean reference style latent z_s of shape [B, Ls, D] or [Ls, D].
         eps: Small epsilon for numerical stability.
 
     Returns:
-        Color-corrected latent tensor of shape [B, L, D].
+        Color-corrected latent tensor of shape matching source_lat.
     """
     orig_dtype = source_lat.dtype
     s_f = source_lat.float()
     t_f = target_lat.float()
 
-    # Compute global statistics over tokens (dim 1)
-    s_mean = s_f.mean(dim=1, keepdim=True)
-    s_std = torch.clamp(s_f.std(dim=1, keepdim=True), min=eps)
+    # Compute source token statistics over sequence dimension (dim -2)
+    s_mean = s_f.mean(dim=-2, keepdim=True)
+    s_std = torch.clamp(s_f.std(dim=-2, keepdim=True), min=eps)
 
-    t_mean = t_f.mean(dim=1, keepdim=True)
-    t_std = torch.clamp(t_f.std(dim=1, keepdim=True), min=eps)
+    # Compute target global per-channel statistics across all non-channel dimensions
+    target_reduce_dims = tuple(range(t_f.dim() - 1)) if t_f.dim() > 1 else (0,)
+    t_mean = t_f.mean(dim=target_reduce_dims, keepdim=True)
+    t_std = torch.clamp(t_f.std(dim=target_reduce_dims, keepdim=True), min=eps)
 
     normalized = (s_f - s_mean) / s_std
     corrected = normalized * t_std + t_mean

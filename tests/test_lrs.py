@@ -41,6 +41,16 @@ class TestLRS(unittest.TestCase):
         self.assertTrue(torch.allclose(out_k[0][:, :, :l_txt, :], k_list[0][:, :, :l_txt, :]))
         self.assertTrue(torch.allclose(out_v[0][:, :, :l_txt, :], v_list[0][:, :, :l_txt, :]))
 
+    def test_lrs_3d_tensor(self):
+        torch.manual_seed(42)
+        b, l, d = 1, 30, 16
+        k_list = [torch.randn(b, l, d) for _ in range(3)]
+        v_list = [torch.randn(b, l, d) for _ in range(3)]
+
+        out_k, out_v = apply_layout_residual_suppression(k_list, v_list, txt_len=0)
+        self.assertEqual(len(out_k), 3)
+        self.assertEqual(out_k[0].shape, (b, l, d))
+
 
 if __name__ == "__main__":
     unittest.main()
