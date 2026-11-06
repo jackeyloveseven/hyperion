@@ -4,6 +4,8 @@
 
 [![Project Page](https://img.shields.io/badge/Project-Page-blue?style=flat-square&logo=googlechrome)](https://jackeyloveseven.github.io/hyperion/)
 [![Paper](https://img.shields.io/badge/Paper-IEEE%20TPAMI-red?style=flat-square&logo=ieee)](https://github.com/jackeyloveseven/hyperion-style-transfer)
+[![Manuscript PDF](https://img.shields.io/badge/PDF-Manuscript-b31b1b?style=flat-square&logo=adobeacrobatreader)](https://github.com/jackeyloveseven/hyperion-style-transfer/blob/main/main.pdf)
+[![Supplementary PDF](https://img.shields.io/badge/PDF-Supplementary-blue?style=flat-square&logo=adobeacrobatreader)](https://github.com/jackeyloveseven/hyperion-style-transfer/blob/main/supplementary.pdf)
 [![Code](https://img.shields.io/badge/Code-GitHub-black?style=flat-square&logo=github)](https://github.com/jackeyloveseven/hyperion)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
@@ -11,9 +13,22 @@
 
 **IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI) 2026**
 
+[Yi Li](https://github.com/jackeyloveseven)<sup>1</sup>, [Chengyan Li](https://github.com/jackeyloveseven)<sup>1</sup>, Zhirui Fang<sup>1</sup>, Junchuan Zhang<sup>1</sup>, Xuan Wang<sup>2</sup>, Huaibo Huang<sup>3</sup>, Yan Luo<sup>1</sup>, Yanqing Guo<sup>1,*</sup>
+
+<sup>1</sup>Dalian University of Technology &nbsp;&bull;&nbsp; <sup>2</sup>Beihang University &nbsp;&bull;&nbsp; <sup>3</sup>Institute of Automation, Chinese Academy of Sciences (CASIA)  
+<sup>*</sup>Corresponding author
+
 [English](README.md) | [中文说明](README_CN.md) | [Project Page](https://jackeyloveseven.github.io/hyperion/)
 
 </div>
+
+---
+
+## 📢 News & Updates
+
+- **[2026.11]** Hyperion is accepted by **IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)**! 🎉
+- **[2026.11]** Released clean modular code repository, interactive [Academic Project Website](https://jackeyloveseven.github.io/hyperion/), reproducible quickstart assets, and open-source evaluation metrics!
+- **[2026.07]** Pre-print manuscript (18 pp) and full supplementary material (21 pp, 44 dossiers) made available on [hyperion-style-transfer](https://github.com/jackeyloveseven/hyperion-style-transfer).
 
 ---
 
@@ -26,6 +41,8 @@
 
 ## 📖 Table of Contents
 
+- [News & Updates](#-news--updates)
+- [Gallery](#-gallery)
 - [Overview](#-overview)
 - [Method & Architecture](#-method--architecture)
 - [Quantitative Results](#-quantitative-results)
@@ -78,6 +95,10 @@ Built on frozen MM-DiT backbones (primarily **FLUX.2-Klein-9B** and **FLUX.1-dev
     <td align="center"><img src="images/concept_freq.png" width="240"><br><b>Frequency Decomposition</b></td>
     <td align="center"><img src="images/concept_spatial.png" width="240"><br><b>Layout Suppression</b></td>
   </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="images/fig2_pareto.png" width="480"><br><b>Style vs. Content Pareto Frontier</b></td>
+    <td colspan="2" align="center"><img src="images/fig3_spatial_proof.png" width="480"><br><b>Spatial Neighbor Gradient Coupling &rho;(d)</b></td>
+  </tr>
 </table>
 </div>
 
@@ -122,6 +143,10 @@ Built on frozen MM-DiT backbones (primarily **FLUX.2-Klein-9B** and **FLUX.1-dev
 
 ## 🖼️ Qualitative Results
 
+### Comprehensive 234-Pair Benchmark Qualitative Comparison
+![Comprehensive Benchmark Qualitative Comparison](images/benchmark_comparison.jpg)
+*Qualitative comparison against four state-of-the-art style transfer approaches across diverse artistic genres.*
+
 ### Text-to-Image (T2I) Qualitative Benchmark Comparison
 ![T2I Benchmark Comparison](images/t2i_comparison.jpg)
 
@@ -133,6 +158,10 @@ Built on frozen MM-DiT backbones (primarily **FLUX.2-Klein-9B** and **FLUX.1-dev
 
 ### Component Ablation Visual Comparison
 ![Component Ablation](images/ablation.jpg)
+
+### 234-Pair Benchmark Style Atlas (39 Styles &times; 6 Prompts)
+![Benchmark Style Atlas](images/dataset_atlas.jpg)
+*Standardized evaluation benchmark encompassing 39 diverse artistic references across 21 style families (impressionism, oil impasto, watercolor, ukiyo-e, sketches, linocut, and ink wash).*
 
 ---
 
@@ -253,13 +282,33 @@ python scripts/generate_i2i.py \
 ```
 
 ### 3. Quantitative Metrics Evaluation
-Evaluate your generated image with Hyperion's unique metrics:
+Evaluate your generated image (or our pre-packaged stylized sample `assets/output_example.png`) with Hyperion's principled metric suite:
 ```bash
 python scripts/evaluate_metrics.py \
-    --output outputs/car_stylized.png \
+    --output assets/output_example.png \
     --style assets/style_example.png \
-    --prompt "A sports car on a mountain road" \
+    --content assets/content_example.png \
+    --prompt "A panda eat bamboo" \
     --save_csv results.csv
+```
+
+**Expected terminal output:**
+```
+=================================================================
+ Hyperion Quantitative Metrics Evaluation
+=================================================================
+
+[Evaluating output-space texture metrics]
+  * Style-Texture Match (STM)  : 0.9780 (Higher = closer texture orientation)
+  * Texture Energy             : 0.0631
+  * Orientation Coherence      : 0.4979
+
+=================================================================
+ Evaluation Summary:
+  STM                       : 0.9780
+  Texture_Energy            : 0.0631
+  Orientation_Coherence     : 0.4979
+=================================================================
 ```
 
 ---

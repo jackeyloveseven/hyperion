@@ -377,14 +377,17 @@
       <span><sup>1</sup>Dalian University of Technology &nbsp;&bull;&nbsp; <sup>2</sup>Beihang University &nbsp;&bull;&nbsp; <sup>3</sup>Institute of Automation, Chinese Academy of Sciences (CASIA)</span>
     </div>
     <div class="hero-links">
-      <a class="hero-btn" href="https://github.com/jackeyloveseven/hyperion-style-transfer" target="_blank">
-        <i class="ai ai-ieee"></i>&nbsp;Paper (TPAMI)
+      <a class="hero-btn" href="https://github.com/jackeyloveseven/hyperion-style-transfer/blob/main/main.pdf" target="_blank">
+        <i class="ai ai-ieee"></i>&nbsp;Paper (PDF)
+      </a>
+      <a class="hero-btn" href="https://github.com/jackeyloveseven/hyperion-style-transfer/blob/main/supplementary.pdf" target="_blank">
+        <i class="fas fa-file-pdf"></i>&nbsp;Supplementary
       </a>
       <a class="hero-btn" href="https://github.com/jackeyloveseven/hyperion" target="_blank">
         <i class="fab fa-github"></i>&nbsp;Code
       </a>
-      <a class="hero-btn" href="https://jackeyloveseven.github.io/hyperion/" target="_blank">
-        <i class="fas fa-globe"></i>&nbsp;Project Page
+      <a class="hero-btn" href="https://github.com/jackeyloveseven/hyperion-style-transfer" target="_blank">
+        <i class="fas fa-book"></i>&nbsp;Paper Repo
       </a>
       <a class="hero-btn" href="#bibtex">
         <i class="ai ai-google-scholar"></i>&nbsp;BibTeX
@@ -612,50 +615,54 @@
 
     <!-- T2I Table -->
     <h3 class="sub-h" style="margin-top: 1rem;">1. Main T2I Benchmark Comparison</h3>
-    <table class="cmp-table">
-      <caption>Table 1: Main quantitative comparison on 234-pair benchmark (39 styles &times; 6 prompts). Fwd./step indicates forward passes per denoising step. &uarr; higher is better.</caption>
-      <thead>
-        <tr>
-          <th>Method</th>
-          <th>CSD &uarr;</th>
-          <th>CLIP-T &uarr;</th>
-          <th>STM &uarr;</th>
-          <th>Fwd. / Step</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>Text-only Baseline</td><td>-0.010</td><td>0.315</td><td>0.350</td><td>1</td></tr>
-        <tr><td>Forward Injection</td><td>0.039</td><td>0.314</td><td>0.395</td><td>2</td></tr>
-        <tr><td>Adam-8 (no SLT)</td><td>0.608</td><td>0.279</td><td>0.726</td><td>10</td></tr>
-        <tr><td>SLT only (no Adam)</td><td>0.298</td><td>0.309</td><td>0.624</td><td>2</td></tr>
-        <tr class="hl"><td><b>Hyperion (Ours, N=2)</b></td><td><b>0.640</b></td><td><b>0.296</b></td><td><b>0.775</b></td><td><b>4</b></td></tr>
-      </tbody>
-    </table>
+    <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+      <table class="cmp-table">
+        <caption>Table 1: Main quantitative comparison on 234-pair benchmark (39 styles &times; 6 prompts). Fwd./step indicates forward passes per denoising step. &uarr; higher is better.</caption>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>CSD &uarr;</th>
+            <th>CLIP-T &uarr;</th>
+            <th>STM &uarr;</th>
+            <th>Fwd. / Step</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Text-only Baseline</td><td>-0.010</td><td>0.315</td><td>0.350</td><td>1</td></tr>
+          <tr><td>Forward Injection</td><td>0.039</td><td>0.314</td><td>0.395</td><td>2</td></tr>
+          <tr><td>Adam-8 (no SLT)</td><td>0.608</td><td>0.279</td><td>0.726</td><td>10</td></tr>
+          <tr><td>SLT only (no Adam)</td><td>0.298</td><td>0.309</td><td>0.624</td><td>2</td></tr>
+          <tr class="hl"><td><b>Hyperion (Ours, N=2)</b></td><td><b>0.640</b></td><td><b>0.296</b></td><td><b>0.775</b></td><td><b>4</b></td></tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- I2I Table -->
     <h3 class="sub-h">2. Image-to-Image (I2I) Comparison with Trained Adapters</h3>
-    <table class="cmp-table">
-      <caption>Table 2: I2I quantitative evaluation on the 40-pair benchmark. SCH is Style-Content Harmonic mean; STM is Style-Texture Match. Bold indicates best.</caption>
-      <thead>
-        <tr>
-          <th>Method</th>
-          <th>CSD &uarr;</th>
-          <th>CLIP-I &uarr;</th>
-          <th>LPIPS &darr;</th>
-          <th>FID &darr;</th>
-          <th>ArtFID &darr;</th>
-          <th>SCH &uarr;</th>
-          <th>STM &uarr;</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>CSGO (SDXL)</td><td>0.557</td><td>0.689</td><td>0.656</td><td>15.1</td><td>26.7</td><td>0.619</td><td>0.363</td></tr>
-        <tr><td>USO (FLUX)</td><td>0.510</td><td><b>0.766</b></td><td>0.666</td><td>8.9</td><td>16.5</td><td>0.625</td><td>0.263</td></tr>
-        <tr><td>IP-Adapter (FLUX)</td><td>0.160</td><td>0.623</td><td><b>0.558</b></td><td>17.0</td><td>28.0</td><td>0.316</td><td>0.465</td></tr>
-        <tr><td>Qwen-Image-Edit</td><td>0.343</td><td>0.708</td><td>0.663</td><td>7.5</td><td>14.1</td><td>0.493</td><td>0.405</td></tr>
-        <tr class="hl"><td><b>Hyperion (Ours)</b></td><td><b>0.712</b></td><td>0.660</td><td>0.696</td><td><b>5.4</b></td><td><b>10.9</b></td><td><b>0.686</b></td><td><b>0.716</b></td></tr>
-      </tbody>
-    </table>
+    <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+      <table class="cmp-table">
+        <caption>Table 2: I2I quantitative evaluation on the 40-pair benchmark. SCH is Style-Content Harmonic mean; STM is Style-Texture Match. Bold indicates best.</caption>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>CSD &uarr;</th>
+            <th>CLIP-I &uarr;</th>
+            <th>LPIPS &darr;</th>
+            <th>FID &darr;</th>
+            <th>ArtFID &darr;</th>
+            <th>SCH &uarr;</th>
+            <th>STM &uarr;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>CSGO (SDXL)</td><td>0.557</td><td>0.689</td><td>0.656</td><td>15.1</td><td>26.7</td><td>0.619</td><td>0.363</td></tr>
+          <tr><td>USO (FLUX)</td><td>0.510</td><td><b>0.766</b></td><td>0.666</td><td>8.9</td><td>16.5</td><td>0.625</td><td>0.263</td></tr>
+          <tr><td>IP-Adapter (FLUX)</td><td>0.160</td><td>0.623</td><td><b>0.558</b></td><td>17.0</td><td>28.0</td><td>0.316</td><td>0.465</td></tr>
+          <tr><td>Qwen-Image-Edit</td><td>0.343</td><td>0.708</td><td>0.663</td><td>7.5</td><td>14.1</td><td>0.493</td><td>0.405</td></tr>
+          <tr class="hl"><td><b>Hyperion (Ours)</b></td><td><b>0.712</b></td><td>0.660</td><td>0.696</td><td><b>5.4</b></td><td><b>10.9</b></td><td><b>0.686</b></td><td><b>0.716</b></td></tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- Charts row -->
     <div class="row" style="margin-top: 1rem; margin-bottom: 2rem;">
@@ -668,6 +675,16 @@
         <p class="caption"><b>Spatial Neighbor Gradient Coupling &rho;(d).</b> Empirical proof of the value-path mechanism: Adam-in-loop achieves &rho; = 0.64, sustaining spatial coherence over multiple tokens.</p>
       </div>
     </div>
+
+    <!-- 234-Pair Benchmark Style Atlas -->
+    <h3 class="sub-h">3. Comprehensive 234-Pair Benchmark Dataset &amp; Style Atlas</h3>
+    <figure class="result-figure" style="text-align: center; margin: 1.5rem 0 1rem;">
+      <img class="fig-img" src="images/dataset_atlas.jpg" alt="Hyperion 39-style benchmark atlas">
+      <figcaption>
+        <b>Benchmark Style Atlas (39 styles &times; 6 prompts = 234 evaluation pairs).</b>
+        Spanning impressionism, oil impasto, watercolor, ukiyo-e, sketches, linocut, and ink wash, providing a standardized evaluation benchmark across 21 diverse artistic medium families.
+      </figcaption>
+    </figure>
   </div>
 </section>
 
@@ -771,13 +788,20 @@ function copyBib() {
   document.querySelector('.carousel-arrow.next').addEventListener('click', () => { stopAuto(); go(cur + 1); startAuto(); });
   dots.forEach((d, i) => d.addEventListener('click', () => { stopAuto(); go(i); startAuto(); }));
 
-  // Swipe support
+  // Touch swipe support
   let sx = 0;
   track.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
   track.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - sx;
     if (Math.abs(dx) > 40) { stopAuto(); go(cur + (dx < 0 ? 1 : -1)); startAuto(); }
   }, { passive: true });
+
+  // Pause on hover
+  const carouselEl = document.getElementById('mainCarousel');
+  if (carouselEl) {
+    carouselEl.addEventListener('mouseenter', stopAuto);
+    carouselEl.addEventListener('mouseleave', startAuto);
+  }
 
   startAuto();
 })();

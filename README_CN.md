@@ -1,9 +1,11 @@
-# Hyperion: 基于扩散 Transformer 的免训练风格迁移方法
+# Bridging the Training Gap with Hyperion: 基于扩散 Transformer 的免训练风格迁移方法
 
 <div align="center">
 
 [![Project Page](https://img.shields.io/badge/Project-Page-blue?style=flat-square&logo=googlechrome)](https://jackeyloveseven.github.io/hyperion/)
 [![Paper](https://img.shields.io/badge/Paper-IEEE%20TPAMI-red?style=flat-square&logo=ieee)](https://github.com/jackeyloveseven/hyperion-style-transfer)
+[![Manuscript PDF](https://img.shields.io/badge/PDF-Manuscript-b31b1b?style=flat-square&logo=adobeacrobatreader)](https://github.com/jackeyloveseven/hyperion-style-transfer/blob/main/main.pdf)
+[![Supplementary PDF](https://img.shields.io/badge/PDF-Supplementary-blue?style=flat-square&logo=adobeacrobatreader)](https://github.com/jackeyloveseven/hyperion-style-transfer/blob/main/supplementary.pdf)
 [![Code](https://img.shields.io/badge/Code-GitHub-black?style=flat-square&logo=github)](https://github.com/jackeyloveseven/hyperion)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
@@ -11,9 +13,22 @@
 
 **IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI) 2026**
 
+[李毅](https://github.com/jackeyloveseven)<sup>1</sup>, [李承炎](https://github.com/jackeyloveseven)<sup>1</sup>, 房智锐<sup>1</sup>, 张俊川<sup>1</sup>, 王轩<sup>2</sup>, 黄淮波<sup>3</sup>, 罗艳<sup>1</sup>, 郭艳卿<sup>1,*</sup>
+
+<sup>1</sup>大连理工大学 &nbsp;&bull;&nbsp; <sup>2</sup>北京航空航天大学 &nbsp;&bull;&nbsp; <sup>3</sup>中国科学院自动化研究所 (CASIA)  
+<sup>*</sup>通讯作者 (Corresponding author)
+
 [English](README.md) | [中文说明](README_CN.md) | [Project Page](https://jackeyloveseven.github.io/hyperion/)
 
 </div>
+
+---
+
+## 📢 最新动态 (News)
+
+- **[2026.11]** Hyperion 论文已被人工智能顶刊 **IEEE TPAMI 2026** 正式录用！🎉
+- **[2026.11]** 正式发布整洁规范的代码工程、[学术项目主页 (Project Website)](https://jackeyloveseven.github.io/hyperion/)、完整的独特评价指标体系与基准快速复现物料！
+- **[2026.07]** 论文正文初稿（18页）与包含 44 项可信溯源档案的补充材料（21页）已在 [hyperion-style-transfer](https://github.com/jackeyloveseven/hyperion-style-transfer) 开源发布。
 
 ---
 
@@ -26,6 +41,8 @@
 
 ## 📖 目录
 
+- [📢 最新动态 (News)](#-最新动态-news)
+- [🎨 视觉效果展示](#-视觉效果展示)
 - [🌟 核心概述](#-核心概述)
 - [🔬 方法与算法架构](#-方法与算法架构)
 - [📊 定量实验结果](#-定量实验结果)
@@ -78,6 +95,10 @@ Hyperion 运行于冻结的 MM-DiT 主干（如 **FLUX.2-Klein-9B** 或 **FLUX.1
     <td align="center"><img src="images/concept_freq.png" width="240"><br><b>频域损失细节增强</b></td>
     <td align="center"><img src="images/concept_spatial.png" width="240"><br><b>布局残差衰减 (LRS)</b></td>
   </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="images/fig2_pareto.png" width="480"><br><b>风格-内容 Pareto 前沿对比</b></td>
+    <td colspan="2" align="center"><img src="images/fig3_spatial_proof.png" width="480"><br><b>空间梯度耦合度 &rho;(d) 理论与实验验证</b></td>
+  </tr>
 </table>
 </div>
 
@@ -122,6 +143,10 @@ Hyperion 运行于冻结的 MM-DiT 主干（如 **FLUX.2-Klein-9B** 或 **FLUX.1
 
 ## 🖼️ 定性对比展示
 
+### 234 对全量基准大图定性对比
+![全量基准定性对比大图](images/benchmark_comparison.jpg)
+*在涵盖 21 个不同艺术流派的基准上，与四种主流前沿风格化方法（CSGO、USO、IP-Adapter、Qwen）的定性对比展示。*
+
 ### 文生图 (T2I) 生成效果对比
 ![T2I 对比图](images/t2i_comparison.jpg)
 
@@ -133,6 +158,10 @@ Hyperion 运行于冻结的 MM-DiT 主干（如 **FLUX.2-Klein-9B** 或 **FLUX.1
 
 ### 模块消融定性对比
 ![消融对比图](images/ablation.jpg)
+
+### 234 对评测基准风格图谱 (39 种风格 &times; 6 组提示词)
+![基准风格图谱](images/dataset_atlas.jpg)
+*论文采用的标准基准图谱，全面覆盖印象派、厚涂油画、水彩、浮世绘、线描素描、版画刻印、水墨流线等 21 个艺术媒介家族。*
 
 ---
 
@@ -252,12 +281,33 @@ python scripts/generate_i2i.py \
 ```
 
 ### 3. 指标计算与评估
+一键评测您生成的图像（或使用我们预置的标准样图 `assets/output_example.png`）在本文创新指标体系下的表现：
 ```bash
 python scripts/evaluate_metrics.py \
-    --output outputs/car_stylized.png \
+    --output assets/output_example.png \
     --style assets/style_example.png \
-    --prompt "A sports car on a mountain road" \
+    --content assets/content_example.png \
+    --prompt "A panda eat bamboo" \
     --save_csv results.csv
+```
+
+**预期终端输出结果：**
+```
+=================================================================
+ Hyperion Quantitative Metrics Evaluation
+=================================================================
+
+[Evaluating output-space texture metrics]
+  * Style-Texture Match (STM)  : 0.9780 (Higher = closer texture orientation)
+  * Texture Energy             : 0.0631
+  * Orientation Coherence      : 0.4979
+
+=================================================================
+ Evaluation Summary:
+  STM                       : 0.9780
+  Texture_Energy            : 0.0631
+  Orientation_Coherence     : 0.4979
+=================================================================
 ```
 
 ---
