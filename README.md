@@ -1,68 +1,142 @@
 # Bridging the Training Gap with Hyperion: A Training-Free Style Transfer Method on Diffusion Transformers
 
-[![TPAMI](https://img.shields.io/badge/IEEE%20TPAMI-2026-blue.svg)](https://github.com/jackeyloveseven/hyperion-style-transfer)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
-[![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org/)
+<div align="center">
 
-Official open-source implementation of **Hyperion**, a training-free style transfer method for Multimodal Diffusion Transformers (MM-DiT).
+[![Project Page](https://img.shields.io/badge/Project-Page-blue?style=flat-square&logo=googlechrome)](https://jackeyloveseven.github.io/hyperion/)
+[![Paper](https://img.shields.io/badge/Paper-IEEE%20TPAMI-red?style=flat-square&logo=ieee)](https://github.com/jackeyloveseven/hyperion-style-transfer)
+[![Code](https://img.shields.io/badge/Code-GitHub-black?style=flat-square&logo=github)](https://github.com/jackeyloveseven/hyperion)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
+[![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg?style=flat-square&logo=pytorch)](https://pytorch.org/)
 
-> **Bridging the Training Gap with Hyperion: A Training-Free Style Transfer Method on Diffusion Transformers**  
-> *IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)*  
-> Yi Li, Chengyan Li, Zhirui Fang, Junchuan Zhang, Yan Luo, Yanqing Guo (Dalian University of Technology), Xuan Wang (Beihang University), Huaibo Huang (CASIA).  
-> Paper Repository: [hyperion-style-transfer](https://github.com/jackeyloveseven/hyperion-style-transfer)
+**IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI) 2026**
+
+[English](README.md) | [中文说明](README_CN.md) | [Project Page](https://jackeyloveseven.github.io/hyperion/)
+
+</div>
+
+---
+
+## 🎨 Gallery
+
+![Diverse Style Transfer Gallery](images/style_gallery.jpg)
+*Hyperion generates expressive, high-fidelity brushstroke textures and authentic painterly medium characteristics across watercolor, oil impasto, sketch, linocut, and ink wash styles — entirely training-free with zero fine-tuned weights.*
 
 ---
 
 ## 📖 Table of Contents
 
 - [Overview](#-overview)
-- [Method Highlights](#-method-highlights)
+- [Method & Architecture](#-method--architecture)
+- [Quantitative Results](#-quantitative-results)
+- [Qualitative Results](#-qualitative-results)
 - [Unique Quantitative Metrics](#-unique-quantitative-metrics)
 - [Repository Structure](#-repository-structure)
 - [Installation](#-installation)
 - [Quickstart & CLI](#-quickstart--cli)
-  - [Text-to-Image (T2I) Style Transfer](#1-text-to-image-t2i-style-transfer)
-  - [Image-to-Image (I2I) Style Transfer](#2-image-to-image-i2i-style-transfer)
-  - [Quantitative Metrics Evaluation](#3-quantitative-metrics-evaluation)
+  - [1. Text-to-Image (T2I) Style Transfer](#1-text-to-image-t2i-style-transfer)
+  - [2. Image-to-Image (I2I) Style Transfer](#2-image-to-image-i2i-style-transfer)
+  - [3. Quantitative Metrics Evaluation](#3-quantitative-metrics-evaluation)
 - [Python API Usage](#-python-api-usage)
 - [Hyperparameters & Reproducibility](#-hyperparameters--reproducibility)
-- [Citation](#-citation)
+- [BibTeX Citation](#-bibtex-citation)
+- [License](#-license)
 
 ---
 
 ## 🌟 Overview
 
-Training-free style transfer on Multimodal Diffusion Transformers (MM-DiT) has historically suffered from a fundamental performance gap compared to trained adapters (e.g. CSGO, USO, StyleShot): forward injection methods produce only faint hue shifts without rich painterly textures.
+Training-free style transfer on Multimodal Diffusion Transformers (MM-DiT) has historically suffered from a fundamental performance gap compared to trained adapters (e.g. CSGO, USO, StyleShot): forward-injection methods produce only faint hue shifts without rich painterly textures.
 
-**Hyperion** resolves this gap through two complementary components that freeze all network parameters:
-1. **Adam-in-loop Latent Optimization**: Propagates spatial coherence into the latent update via backpropagation through the frozen MM-DiT, recovering the gradient-driven value-path spatial coupling ($\rho = 0.64$) responsible for expressive brushstrokes.
-2. **Sinkhorn Latent Transport (SLT)**: A single closed-form optimal-transport step that pre-aligns latent color and distribution statistics before Adam optimization, eliminating gradient budget waste on low-frequency color mismatch.
+**Hyperion** traces this limitation to the absence of backpropagation-induced spatial coupling and proposes a fully training-free style transfer pipeline built on two synergistic components:
 
-On the full 234-pair benchmark, Hyperion outperforms equal-budget Adam-only baselines by **+16.6% CSD** and prior training-free methods by **+5.2%**, achieving the highest style fidelity while strictly preserving content semantics.
+1. **Adam-in-loop Latent Optimization**: Backpropagates style loss gradients through the frozen MM-DiT at each denoising step, recovering the self-attention value-path spatial coupling ($\rho = 0.64$) responsible for expressive brushstrokes.
+2. **Sinkhorn Latent Transport (SLT)**: A closed-form entropic optimal transport step that pre-aligns latent color and distribution statistics in $\approx 0.1\text{ ms}$ with **zero forward passes**, eliminating gradient budget waste on low-frequency color convergence.
 
----
-
-## 🔬 Method Highlights
-
-### 1. Sinkhorn Latent Transport (SLT)
-Before backpropagation begins, SLT calculates an optimal transport plan $T = \text{Sinkhorn}(\tilde{S}/\tau)$ from high-frequency residual cosine similarities $\tilde{S}_{ij} = \cos(\tilde{z}_t[i], \tilde{z}_s[j])$, transferring distribution statistics via per-token **OT-AdaIN**:
-$$\hat{z}_t[i] = \sigma^*_i \frac{z_t[i] - \mu_t}{\sigma_t} + \mu^*_i, \quad z_t \leftarrow (1-\alpha)z_t + \alpha \hat{z}_t$$
-SLT runs in $\approx 0.1\text{ ms}$ with **zero forward passes**, instantly resolving the global color mismatch.
-
-### 2. Frequency-Domain Sinkhorn Attention
-In deep transformer blocks, the self-attention style loss decomposes queries and keys into low-frequency and high-frequency components:
-$$\text{logits} = \text{logits}_\text{lo} + \gamma_\text{hi} \text{logits}_\text{hi}, \quad \gamma_\text{hi} = 2.0$$
-followed by doubly-stochastic Sinkhorn normalization. This amplifies texture energy and suppresses oversmoothing.
-
-### 3. Layout Residual Suppression (LRS)
-Style key/value tensors carry both texture directionality and position-dependent spatial layout. LRS attenuates spatial residuals:
-$$K_s^{(\ell)\prime} = \mu_K^{(\ell)} + \gamma^{(\ell)}(K_s^{(\ell)} - \mu_K^{(\ell)})$$
-where $\gamma^{(\ell)}$ linearly scales from $0.70$ (shallow) to $0.50$ (deep), eliminating reference layout leakage.
+On our 234-pair benchmark (39 styles $\times$ 6 prompts), Hyperion outperforms equal-budget Adam-only baselines by **+16.6% CSD** and prior training-free methods by **+5.2%**, beating four trained adapters on **19 of 21** diverse style families.
 
 ---
 
-## 📊 Unique Quantitative Metrics
+## 🔬 Method & Architecture
+
+![Hyperion Architecture Framework](images/framework.png)
+
+Built on frozen MM-DiT backbones (primarily **FLUX.2-Klein-9B** and **FLUX.1-dev**), Hyperion introduces four tightly coupled components:
+
+| Component | Role | Physical / Mathematical Mechanism |
+|---|---|---|
+| **Sinkhorn Latent Transport (SLT)** | Zero-shot color & distribution pre-alignment | Computes token-level optimal transport plan $T = \text{Sinkhorn}(\tilde{S}/\tau)$ from high-pass residual cosine similarities and aligns latents via per-token **OT-AdaIN** in $\approx 0.1\text{ ms}$ with 0 neural forward passes. |
+| **Adam-in-loop Latent Optimization** | Recovers brushstroke spatial coupling | Backpropagates through frozen MM-DiT self-attention value paths ($\rho = 0.64$), forcing neighboring latent tokens to undergo correlated gradient updates. |
+| **Frequency-Domain Sinkhorn Attention** | High-frequency detail & texture boost | Decomposes attention logits into low and high frequencies ($\text{logits} = \text{logits}_\text{lo} + \gamma_\text{hi} \text{logits}_\text{hi}$, $\gamma_\text{hi}=2.0$) followed by doubly-stochastic Sinkhorn normalization. |
+| **Layout Residual Suppression (LRS)** | Prevents reference layout leakage | Attenuates spatial layout residuals of style key/value tensors along network depth ($\gamma^{(\ell)}: 0.70 \to 0.50$), suppressing reference composition leakage. |
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center"><img src="images/concept_slt.png" width="240"><br><b>Sinkhorn Latent Transport</b></td>
+    <td align="center"><img src="images/concept_adam.png" width="240"><br><b>Adam-in-Loop Coupling</b></td>
+    <td align="center"><img src="images/concept_freq.png" width="240"><br><b>Frequency Decomposition</b></td>
+    <td align="center"><img src="images/concept_spatial.png" width="240"><br><b>Layout Suppression</b></td>
+  </tr>
+</table>
+</div>
+
+---
+
+## 📊 Quantitative Results
+
+### 1. Main T2I Benchmark (234 Pairs: 39 Styles $\times$ 6 Prompts)
+
+| Method | Type | CSD ↑ | CLIP-T ↑ | STM ↑ | Fwd. / Step |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Text-only Baseline | Training-Free | -0.010 | 0.315 | 0.350 | 1 |
+| Forward Injection | Training-Free | 0.039 | 0.314 | 0.395 | 2 |
+| Adam-8 (no SLT) | Training-Free | 0.608 | 0.279 | 0.726 | 10 |
+| SLT only (no Adam) | Training-Free | 0.298 | 0.309 | 0.624 | 2 |
+| **Hyperion (Ours, $N=2$)** | **Training-Free** | **0.640** | **0.296** | **0.775** | **4** |
+
+> **Key takeaway**: Hyperion achieves CSD = 0.640 with only 4 forward passes per step ($2.5\times$ fewer than Adam-8) while exceeding Adam-8's CSD by **+5.2%** and equal-budget Adam-only by **+16.6%**.
+
+### 2. Image-to-Image (I2I) Comparison with Trained Adapters
+
+| Method | Backbone | CSD ↑ | CLIP-I ↑ | LPIPS ↓ | FID ↓ | ArtFID ↓ | SCH ↑ | STM ↑ |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| CSGO | SDXL (Trained) | 0.557 | 0.689 | 0.656 | 15.1 | 26.7 | 0.619 | 0.363 |
+| USO | FLUX (Trained) | 0.510 | **0.766** | 0.666 | 8.9 | 16.5 | 0.625 | 0.263 |
+| IP-Adapter | FLUX (Trained) | 0.160 | 0.623 | **0.558** | 17.0 | 28.0 | 0.316 | 0.465 |
+| Qwen-Image-Edit | Qwen (Trained) | 0.343 | 0.708 | 0.663 | 7.5 | 14.1 | 0.493 | 0.405 |
+| **Hyperion (Ours)** | **MM-DiT (Frozen)** | **0.712** | 0.660 | 0.696 | **5.4** | **10.9** | **0.686** | **0.716** |
+
+### 3. Component Ablation Study
+
+| Configuration | CSD ↑ | CLIP-T ↑ | STM ↑ | Fwd. Passes | Wall Time ↓ |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Hyperion (Full, $N=2$)** | **0.681** | 0.274 | **0.775** | 4 | 6.4 s |
+| Without SLT (Adam-2 only) | 0.584 | 0.291 | 0.697 | 4 | 6.4 s |
+| Without Adam (SLT only) | 0.298 | 0.309 | 0.624 | 2 | 2.2 s |
+| Softmax Attention Target | 0.633 | 0.283 | 0.735 | 4 | 6.4 s |
+| Without Frequency Boost | 0.678 | 0.271 | 0.773 | 4 | 6.4 s |
+| Adam-8 (Upper Bound Baseline) | 0.650 | 0.296 | 0.726 | 10 | 19.0 s |
+
+---
+
+## 🖼️ Qualitative Results
+
+### Text-to-Image (T2I) Qualitative Benchmark Comparison
+![T2I Benchmark Comparison](images/t2i_comparison.jpg)
+
+### Image-to-Image (I2I) Qualitative Benchmark Comparison
+![I2I Benchmark Comparison](images/i2i_comparison.jpg)
+
+### Layout Residual Suppression (LRS) Anti-Leakage Demo
+![LRS Demo](images/lrs_demo.jpg)
+
+### Component Ablation Visual Comparison
+![Component Ablation](images/ablation.jpg)
+
+---
+
+## 📈 Unique Quantitative Metrics
 
 This repository open-sources all novel evaluation metrics introduced in the TPAMI paper:
 
@@ -104,6 +178,7 @@ hyperion/
 │       ├── perceptual.py         # DINO-style, Gram distance, ArtFID
 │       ├── csd.py                # Contrastive Style Descriptor wrapper
 │       └── clip_eval.py          # CLIP-T & CLIP-I alignment
+├── images/                       # High-resolution benchmark & paper figures
 ├── scripts/                      # CLI entrypoints
 │   ├── generate_t2i.py           # Standalone T2I generation
 │   ├── generate_i2i.py           # Standalone I2I generation
@@ -113,6 +188,7 @@ hyperion/
 │   ├── tpami_t2i_default.json    # Canonical T2I settings
 │   └── tpami_i2i_default.json    # Canonical I2I settings
 ├── tests/                        # Comprehensive unit test suite (54 tests)
+├── index.html                    # Academic Project Website (GitHub Pages)
 ├── pyproject.toml                # Packaging metadata
 ├── requirements.txt              # Production dependencies
 └── LICENSE                       # Apache 2.0 License
@@ -246,16 +322,16 @@ Canonical hyperparameters from **Table 10** in the TPAMI publication:
 
 ---
 
-## 📝 Citation
+## 📝 BibTeX Citation
 
 If you find Hyperion or our evaluation metrics useful in your research, please cite:
 
 ```bibtex
 @article{li2026bridging,
-  title={Bridging the Training Gap with Hyperion: A Training-Free Style Transfer Method on Diffusion Transformers},
-  author={Li, Yi and Li, Chengyan and Fang, Zhirui and Zhang, Junchuan and Luo, Yan and Guo, Yanqing and Wang, Xuan and Huang, Huaibo},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)},
-  year={2026}
+  title     = {Bridging the Training Gap with Hyperion: A Training-Free Style Transfer Method on Diffusion Transformers},
+  author    = {Li, Yi and Li, Chengyan and Fang, Zhirui and Zhang, Junchuan and Wang, Xuan and Huang, Huaibo and Luo, Yan and Guo, Yanqing},
+  journal   = {IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)},
+  year      = {2026}
 }
 ```
 

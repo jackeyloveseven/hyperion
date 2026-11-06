@@ -32,6 +32,8 @@ cnt/
 *.webp
 *.gif
 *.bmp
+!images/*
+!assets/*
 
 # Logs & temporary files
 *.log
