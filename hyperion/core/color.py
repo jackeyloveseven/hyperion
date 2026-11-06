@@ -35,14 +35,17 @@ def feature_adain(
     c_f = content.float()
     s_f = style.float()
 
-    # Determine token dimension: dim -2 (L) for [L, D], [B, L, D], and [B, 1, L, D]
-    token_dim = -2
+    # Determine token dimension: dim (-2, -1) for [B, C, H, W], or dim -2 for [B, L, D] / [B, 1, L, D]
+    if content.dim() == 4 and content.shape[1] > 1:
+        reduce_dim = (-2, -1)
+    else:
+        reduce_dim = -2
 
-    c_mean = c_f.mean(dim=token_dim, keepdim=True)
-    c_std = torch.clamp(c_f.std(dim=token_dim, keepdim=True), min=eps)
+    c_mean = c_f.mean(dim=reduce_dim, keepdim=True)
+    c_std = torch.clamp(c_f.std(dim=reduce_dim, keepdim=True), min=eps)
 
-    s_mean = s_f.mean(dim=token_dim, keepdim=True)
-    s_std = torch.clamp(s_f.std(dim=token_dim, keepdim=True), min=eps)
+    s_mean = s_f.mean(dim=reduce_dim, keepdim=True)
+    s_std = torch.clamp(s_f.std(dim=reduce_dim, keepdim=True), min=eps)
 
     transferred = ((c_f - c_mean) / c_std) * s_std + s_mean
     out = alpha * transferred + (1.0 - alpha) * c_f
@@ -61,8 +64,8 @@ def adain_1d(
     latent z_0 to the clean style latent z_s before VAE decoding.
 
     Args:
-        source_lat: Generated latent z_0 of shape [B, L, D] or [L, D].
-        target_lat: Clean reference style latent z_s of shape [B, Ls, D] or [Ls, D].
+        source_lat: Generated latent z_0 of shape [B, L, D], [L, D], or [B, C, H, W].
+        target_lat: Clean reference style latent z_s of shape [B, Ls, D], [Ls, D], or [B, C, H, W].
         eps: Small epsilon for numerical stability.
 
     Returns:
@@ -72,14 +75,24 @@ def adain_1d(
     s_f = source_lat.float()
     t_f = target_lat.float()
 
-    # Compute source token statistics over sequence dimension (dim -2)
-    s_mean = s_f.mean(dim=-2, keepdim=True)
-    s_std = torch.clamp(s_f.std(dim=-2, keepdim=True), min=eps)
-
-    # Compute target global per-channel statistics across all non-channel dimensions
-    target_reduce_dims = tuple(range(t_f.dim() - 1)) if t_f.dim() > 1 else (0,)
-    t_mean = t_f.mean(dim=target_reduce_dims, keepdim=True)
-    t_std = torch.clamp(t_f.std(dim=target_reduce_dims, keepdim=True), min=eps)
+    if s_f.dim() == 4 and s_f.shape[1] > 1:
+        # [B, C, H, W] format
+        s_mean = s_f.mean(dim=(-2, -1), keepdim=True)
+        s_std = torch.clamp(s_f.std(dim=(-2, -1), keepdim=True), min=eps)
+        if t_f.dim() == 4:
+            t_mean = t_f.mean(dim=(0, 2, 3), keepdim=True)
+            t_std = torch.clamp(t_f.std(dim=(0, 2, 3), keepdim=True), min=eps)
+        else:
+            t_reduce = tuple(range(t_f.dim() - 1)) if t_f.dim() > 1 else (0,)
+            t_mean = t_f.mean(dim=t_reduce, keepdim=True).view(1, -1, 1, 1)
+            t_std = torch.clamp(t_f.std(dim=t_reduce, keepdim=True), min=eps).view(1, -1, 1, 1)
+    else:
+        # Sequence token format: dim -2 (L)
+        s_mean = s_f.mean(dim=-2, keepdim=True)
+        s_std = torch.clamp(s_f.std(dim=-2, keepdim=True), min=eps)
+        target_reduce_dims = tuple(range(t_f.dim() - 1)) if t_f.dim() > 1 else (0,)
+        t_mean = t_f.mean(dim=target_reduce_dims, keepdim=True)
+        t_std = torch.clamp(t_f.std(dim=target_reduce_dims, keepdim=True), min=eps)
 
     normalized = (s_f - s_mean) / s_std
     corrected = normalized * t_std + t_mean

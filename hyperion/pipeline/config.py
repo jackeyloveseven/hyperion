@@ -68,8 +68,9 @@ class HyperionConfig:
     # Terminal 1-D color correction (Algorithm 1, line 89)
     terminal_color_correction: bool = True
 
-    # Mode: "hybrid" (SLT + Adamx2), "adam_only", "slt_only", or "inject"
+    # Mode: "hybrid" (SLT + Adamx2), "adam_only", "slt_only", "inject", or "vshuffle"
     mode: str = "hybrid"
+    inject_beta: float = 0.50  # Blending weight for attention injection baseline (beta=0.50 in TPAMI Sec. 4.1)
 
     @classmethod
     def t2i_default(cls, **overrides: Any) -> "HyperionConfig":

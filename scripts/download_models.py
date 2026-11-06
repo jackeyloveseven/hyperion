@@ -54,9 +54,9 @@ def main():
 
     if args.target in ("core", "all"):
         print("\n=== Downloading Core Backbone Weights ===")
-        print("Note: FLUX.2-klein-9b requires accepting license agreement on Hugging Face.")
+        print("Note: FLUX.2-klein-9B requires accepting license agreement on Hugging Face.")
         klein_dir = dest / "klein9b"
-        download_hf_repo("black-forest-labs/FLUX.1-dev", klein_dir)
+        download_hf_repo("black-forest-labs/FLUX.2-klein-9B", klein_dir)
 
     if args.target in ("metrics", "all"):
         print("\n=== Downloading Metric Models ===")

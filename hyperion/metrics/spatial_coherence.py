@@ -36,8 +36,10 @@ def compute_spatial_neighbor_correlation(
     else:
         field_np = np.asarray(field, dtype=np.float32)
 
-    if field_np.ndim != 3:
-        raise ValueError(f"Expected 3D field [H, W, C], got shape {field_np.shape}")
+    if field_np.ndim == 2:
+        field_np = field_np[:, :, np.newaxis]
+    elif field_np.ndim != 3:
+        raise ValueError(f"Expected 2D field [H, W] or 3D field [H, W, C], got shape {field_np.shape}")
 
     h, w, c = field_np.shape
     if h <= distance or w <= distance:

@@ -53,12 +53,10 @@ def apply_layout_residual_suppression(
 
         if txt_len > 0 and seq_len > txt_len:
             # Separate text prefix and image tokens
-            if k.dim() == 4:
-                k_txt, k_img = k[:, :, :txt_len, :], k[:, :, txt_len:, :]
-                v_txt, v_img = v[:, :, :txt_len, :], v[:, :, txt_len:, :]
-            else:
-                k_txt, k_img = k[:, :txt_len, :], k[:, txt_len:, :]
-                v_txt, v_img = v[:, :txt_len, :], v[:, txt_len:, :]
+            k_txt = k.narrow(seq_dim, 0, txt_len)
+            k_img = k.narrow(seq_dim, txt_len, seq_len - txt_len)
+            v_txt = v.narrow(seq_dim, 0, txt_len)
+            v_img = v.narrow(seq_dim, txt_len, seq_len - txt_len)
 
             # Spatial mean over image tokens along sequence dimension
             k_mean = k_img.mean(dim=seq_dim, keepdim=True)

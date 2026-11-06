@@ -52,6 +52,17 @@ class TestSinkhorn(unittest.TestCase):
         self.assertEqual(out.shape, (b, h, lc, d))
         self.assertFalse(torch.isnan(out).any())
 
+    def test_sinkhorn_attn_freq_3d(self):
+        torch.manual_seed(42)
+        b, lc, ls, d = 2, 16, 16, 32
+        q = torch.randn(b, lc, d)
+        k = torch.randn(b, ls, d)
+        v = torch.randn(b, ls, d)
+
+        out = sinkhorn_attn_freq(q, k, v, tau=0.1, n_iters=6, hi_boost=2.0)
+        self.assertEqual(out.shape, (b, lc, d))
+        self.assertFalse(torch.isnan(out).any())
+
 
 if __name__ == "__main__":
     unittest.main()

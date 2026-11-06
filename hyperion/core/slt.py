@@ -28,16 +28,22 @@ def compute_latent_effective_rank(
     before running optimal transport.
 
     Args:
-        latent: Style latent tensor of shape [B, L, D] or [L, D].
+        latent: Style latent tensor of shape [B, L, D], [B, 1, L, D], or [L, D].
         variance_threshold: Cumulative energy threshold (default: 0.95).
 
     Returns:
         Effective rank integer r_95.
     """
-    if latent.dim() == 3:
-        sl = latent[0].float()
+    if latent.numel() == 0:
+        return 0
+
+    if latent.dim() >= 3:
+        sl = latent[0].view(-1, latent.shape[-1]).float()
     else:
         sl = latent.float()
+
+    if sl.shape[0] == 0 or sl.shape[1] == 0:
+        return 0
 
     sl_c = sl - sl.mean(dim=0, keepdim=True)
     l_toks, d = sl_c.shape
@@ -61,7 +67,7 @@ def sinkhorn_latent_transport(
     n_iters: int = 10,
     tau: float = 0.02,
     grag_delta: float = 1.0,
-    mode: Literal["ot_adain", "blend"] = "ot_adain",
+    mode: Literal["ot_adain", "blend", "w2", "sw"] = "ot_adain",
     eps: float = 1e-6,
 ) -> torch.Tensor:
     """
@@ -71,20 +77,36 @@ def sinkhorn_latent_transport(
     using an optimal transport plan computed on high-frequency residual cosine similarities.
 
     Args:
-        content_lat: Current denoising latent z_t of shape [B, Lc, D].
-        style_lat_noisy: Style latent noised to step t of shape [B, Ls, D] (for matching).
-        style_lat_clean: Clean style latent z_s of shape [B, Ls, D] (for statistics target).
+        content_lat: Current denoising latent z_t of shape [B, Lc, D] or [Lc, D].
+        style_lat_noisy: Style latent noised to step t of shape [B, Ls, D] or [Ls, D].
+        style_lat_clean: Clean style latent z_s of shape [B, Ls, D] or [Ls, D].
         alpha: Transport interpolation strength (default: 0.10).
         n_iters: Number of Sinkhorn iterations (default: 10).
         tau: Entropic regularization temperature (default: 0.02).
         grag_delta: Style token compression coefficient towards mean (LRS analog, default: 1.0).
-        mode: "ot_adain" (per-token OT-matched AdaIN statistics, recommended) or "blend".
+        mode: Transport algorithm:
+            - "ot_adain": Per-token OT-matched AdaIN statistics (canonical TPAMI paper).
+            - "blend": Direct embedding interpolation via transport plan.
+            - "w2": Closed-form Gaussian-Wasserstein (Monge/Knott-Smith) covariance alignment.
+            - "sw": Sliced-Wasserstein 1D barycentric projection mapping.
         eps: Small epsilon for numerical stability.
 
     Returns:
-        Transported content latent of shape [B, Lc, D], preserving content dtype.
+        Transported content latent of shape matching content_lat, preserving dtype.
     """
     orig_dtype = content_lat.dtype
+    orig_dim = content_lat.dim()
+
+    # Normalize shapes to [B, L, D]
+    if orig_dim == 2:
+        content_lat = content_lat.unsqueeze(0)
+        style_lat_noisy = style_lat_noisy.unsqueeze(0)
+        style_lat_clean = style_lat_clean.unsqueeze(0)
+    elif orig_dim == 4 and content_lat.shape[1] == 1:
+        content_lat = content_lat.squeeze(1)
+        style_lat_noisy = style_lat_noisy.squeeze(1)
+        style_lat_clean = style_lat_clean.squeeze(1)
+
     b, lc, d = content_lat.shape
 
     # Apply GRAG suppression on style latent tokens if grag_delta < 1.0
@@ -99,6 +121,57 @@ def sinkhorn_latent_transport(
     # Convert to float32 for stable OT and statistics computation
     c_f = content_lat.float()
     s_f = style_noisy_g.float()
+
+    # Closed-form Gaussian-W2 mapping (Monge/Knott-Smith map across token distribution)
+    if mode == "w2":
+        s_clean_f = style_clean_g.float()
+        mu_c = c_f.mean(dim=1, keepdim=True)
+        mu_s = s_clean_f.mean(dim=1, keepdim=True)
+        xc = c_f - mu_c
+        xs = s_clean_f - mu_s
+        eye = torch.eye(d, device=c_f.device, dtype=c_f.dtype).unsqueeze(0)
+        sc_cov = torch.bmm(xc.transpose(1, 2), xc) / max(xc.shape[1], 1) + 1e-4 * eye
+        ss_cov = torch.bmm(xs.transpose(1, 2), xs) / max(xs.shape[1], 1) + 1e-4 * eye
+
+        def _mpow(mx: torch.Tensor, p: float) -> torch.Tensor:
+            w, v = torch.linalg.eigh((mx + mx.transpose(-1, -2)) / 2.0)
+            w = w.clamp(min=1e-6).pow(p)
+            return v @ torch.diag_embed(w) @ v.transpose(-1, -2)
+
+        sc_h = _mpow(sc_cov, 0.5)
+        sc_ih = _mpow(sc_cov, -0.5)
+        mid_h = _mpow(torch.bmm(sc_h, torch.bmm(ss_cov, sc_h)), 0.5)
+        a_mat = torch.bmm(sc_ih, torch.bmm(mid_h, sc_ih))
+        transported = torch.bmm(xc, a_mat) + mu_s
+        out = (1.0 - alpha) * c_f + alpha * transported
+        if torch.isnan(out).any() or out.abs().max() > 1e4:
+            out = c_f
+        if orig_dim == 2:
+            return out.squeeze(0).to(orig_dtype)
+        elif orig_dim == 4:
+            return out.unsqueeze(1).to(orig_dtype)
+        return out.to(orig_dtype)
+
+    # Sliced-Wasserstein barycentric map (1D random projection OT)
+    if mode == "sw":
+        s_clean_f = style_clean_g.float()
+        p_projections = 64
+        theta = F.normalize(torch.randn(p_projections, d, device=c_f.device, dtype=c_f.dtype), dim=1)
+        cp = torch.einsum('bnd,pd->bnp', c_f, theta)
+        sp = torch.einsum('bmd,pd->bmp', s_clean_f, theta)
+        sp_sorted, _ = torch.sort(sp, dim=1)
+        nn = cp.shape[1]
+        mm = sp.shape[1]
+        ranks = cp.argsort(dim=1).argsort(dim=1)
+        idx = (ranks.float() / max(nn - 1, 1) * (mm - 1)).round().long().clamp(0, mm - 1)
+        mapped = torch.gather(sp_sorted, 1, idx)
+        delta = torch.einsum('bnp,pd->bnd', mapped - cp, theta) / p_projections
+        out = c_f + alpha * delta
+        if orig_dim == 2:
+            return out.squeeze(0).to(orig_dtype)
+        elif orig_dim == 4:
+            return out.unsqueeze(1).to(orig_dtype)
+        return out.to(orig_dtype)
 
     # High-frequency residual (spatial mean subtracted) to match by texture rather than absolute position
     c_hi = c_f - c_f.mean(dim=1, keepdim=True)
@@ -117,23 +190,25 @@ def sinkhorn_latent_transport(
         # Direct embedding interpolation
         target = torch.bmm(transport_plan, style_clean_g.float())
         out = (1.0 - alpha) * c_f + alpha * target
-        return out.to(orig_dtype)
+    else:
+        # Canonical TPAMI: OT-AdaIN
+        style_target = style_clean_g.float()
+        matched_mean = torch.bmm(transport_plan, style_target)  # [B, Lc, D]
+        matched_second_moment = torch.bmm(transport_plan, style_target ** 2)
+        matched_var = matched_second_moment - (matched_mean ** 2)
+        matched_std = torch.clamp(matched_var, min=eps).sqrt()
 
-    # Canonical TPAMI: OT-AdaIN
-    # Match each content token to the OT-weighted style distribution statistics
-    style_target = style_clean_g.float()
-    matched_mean = torch.bmm(transport_plan, style_target)  # [B, Lc, D]
-    matched_second_moment = torch.bmm(transport_plan, style_target ** 2)
-    matched_var = matched_second_moment - (matched_mean ** 2)
-    matched_std = torch.clamp(matched_var, min=eps).sqrt()
+        # Content global statistics
+        c_mean = c_f.mean(dim=1, keepdim=True)
+        c_std = torch.clamp(c_f.std(dim=1, keepdim=True), min=eps)
 
-    # Content global statistics
-    c_mean = c_f.mean(dim=1, keepdim=True)
-    c_std = torch.clamp(c_f.std(dim=1, keepdim=True), min=eps)
+        # Normalize content and rescale with OT-matched style statistics
+        normed = (c_f - c_mean) / c_std
+        transported = normed * matched_std + matched_mean
+        out = (1.0 - alpha) * c_f + alpha * transported
 
-    # Normalize content and rescale with OT-matched style statistics
-    normed = (c_f - c_mean) / c_std
-    transported = normed * matched_std + matched_mean
-
-    out = (1.0 - alpha) * c_f + alpha * transported
+    if orig_dim == 2:
+        return out.squeeze(0).to(orig_dtype)
+    elif orig_dim == 4:
+        return out.unsqueeze(1).to(orig_dtype)
     return out.to(orig_dtype)

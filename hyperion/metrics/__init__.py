@@ -21,7 +21,7 @@ from hyperion.metrics.layout_leakage import (
     extract_dinov2_features,
 )
 from hyperion.metrics.spatial_coherence import compute_spatial_neighbor_correlation
-from hyperion.metrics.csd import compute_csd_similarity, preprocess_for_csd
+from hyperion.metrics.csd import compute_csd_similarity, preprocess_for_csd, load_csd_model
 from hyperion.metrics.clip_eval import compute_clip_t, compute_clip_i
 from hyperion.metrics.perceptual import (
     compute_dino_style_similarity,
@@ -42,6 +42,7 @@ __all__ = [
     "extract_dinov2_features",
     "compute_spatial_neighbor_correlation",
     "compute_csd_similarity",
+    "load_csd_model",
     "preprocess_for_csd",
     "compute_clip_t",
     "compute_clip_i",

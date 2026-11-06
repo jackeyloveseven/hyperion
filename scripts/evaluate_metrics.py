@@ -107,16 +107,10 @@ def main():
         if csd_path.exists():
             try:
                 import torch
-                from hyperion.metrics.csd import compute_csd_similarity
+                from hyperion.metrics.csd import compute_csd_similarity, load_csd_model
 
                 print("\n[Evaluating CSD metric]")
-                csd_obj = torch.load(str(csd_path), map_location=args.device, weights_only=False)
-                if isinstance(csd_obj, torch.nn.Module):
-                    csd_model = csd_obj.eval()
-                elif isinstance(csd_obj, dict) and "model" in csd_obj and isinstance(csd_obj["model"], torch.nn.Module):
-                    csd_model = csd_obj["model"].eval()
-                else:
-                    raise TypeError("CSD model file must contain a PyTorch Module or saved model object.")
+                csd_model = load_csd_model(csd_path, device=args.device)
 
                 csd = compute_csd_similarity(csd_model, args.output, args.style, device=args.device)
                 results["CSD"] = round(csd, 4)

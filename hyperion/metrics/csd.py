@@ -6,7 +6,7 @@ used as the primary quantitative style fidelity metric in:
 "Bridging the Training Gap with Hyperion: A Training-Free Style Transfer Method on Diffusion Transformers" (IEEE TPAMI)
 """
 
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from PIL import Image
 import torch
 import torch.nn.functional as F
@@ -24,11 +24,15 @@ def preprocess_for_csd(
     """
     Preprocesses an input image to CSD normalized tensor [1, 3, 224, 224].
     """
+    mean = torch.tensor(_CLIP_MEAN, device=device).view(1, 3, 1, 1)
+    std = torch.tensor(_CLIP_STD, device=device).view(1, 3, 1, 1)
+
     if isinstance(img_or_path, torch.Tensor):
-        if img_or_path.dim() == 3:
-            img_or_path = img_or_path.unsqueeze(0)
-        t = F.interpolate(img_or_path, size=(224, 224), mode="bilinear", align_corners=False)
-        return t.to(device)
+        t = img_or_path.to(device)
+        if t.dim() == 3:
+            t = t.unsqueeze(0)
+        t = F.interpolate(t, size=(224, 224), mode="bilinear", align_corners=False)
+        return (t - mean.to(t.dtype)) / std.to(t.dtype)
 
     if isinstance(img_or_path, str):
         pil_img = Image.open(img_or_path).convert("RGB")
@@ -39,9 +43,35 @@ def preprocess_for_csd(
 
     pil_img = pil_img.resize((224, 224), Image.Resampling.BILINEAR)
     t = transforms.ToTensor()(pil_img).unsqueeze(0).to(device)
-    mean = torch.tensor(_CLIP_MEAN, device=device).view(1, 3, 1, 1)
-    std = torch.tensor(_CLIP_STD, device=device).view(1, 3, 1, 1)
     return (t - mean) / std
+
+
+def load_csd_model(
+    checkpoint_or_model: Union[str, torch.nn.Module, Any],
+    device: str = "cuda",
+) -> torch.nn.Module:
+    """
+    Loads and prepares a CSD model for evaluation from module or checkpoint path.
+    """
+    if isinstance(checkpoint_or_model, torch.nn.Module):
+        return checkpoint_or_model.to(device).eval()
+    if isinstance(checkpoint_or_model, dict):
+        ck = checkpoint_or_model
+    elif isinstance(checkpoint_or_model, (str, bytes)) or hasattr(checkpoint_or_model, "__fspath__"):
+        ck = torch.load(checkpoint_or_model, map_location=device, weights_only=False)
+    else:
+        ck = checkpoint_or_model
+
+    if isinstance(ck, torch.nn.Module):
+        return ck.to(device).eval()
+    if isinstance(ck, dict) and "model" in ck and isinstance(ck["model"], torch.nn.Module):
+        return ck["model"].to(device).eval()
+
+    raise TypeError(
+        f"Unsupported CSD checkpoint structure ({type(ck)}). "
+        "Expected torch.nn.Module or dict containing 'model'."
+    )
+
 
 
 def compute_csd_similarity(

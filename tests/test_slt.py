@@ -59,6 +59,35 @@ class TestSLT(unittest.TestCase):
         self.assertEqual(out.shape, content.shape)
         self.assertFalse(torch.isnan(out).any())
 
+    def test_slt_w2_and_sw_modes(self):
+        torch.manual_seed(42)
+        b, l, d = 1, 16, 16
+        content = torch.randn(b, l, d)
+        style_noisy = torch.randn(b, l, d)
+        style_clean = torch.randn(b, l, d)
+
+        out_w2 = sinkhorn_latent_transport(
+            content, style_noisy, style_clean, alpha=0.1, mode="w2"
+        )
+        self.assertEqual(out_w2.shape, content.shape)
+        self.assertFalse(torch.isnan(out_w2).any())
+
+        out_sw = sinkhorn_latent_transport(
+            content, style_noisy, style_clean, alpha=0.1, mode="sw"
+        )
+        self.assertEqual(out_sw.shape, content.shape)
+        self.assertFalse(torch.isnan(out_sw).any())
+
+    def test_slt_2d_input(self):
+        torch.manual_seed(42)
+        l, d = 16, 16
+        content = torch.randn(l, d)
+        style_noisy = torch.randn(l, d)
+        style_clean = torch.randn(l, d)
+
+        out = sinkhorn_latent_transport(content, style_noisy, style_clean, alpha=0.1)
+        self.assertEqual(out.shape, (l, d))
+
     def test_compute_latent_effective_rank(self):
         from hyperion.core.slt import compute_latent_effective_rank
         torch.manual_seed(42)

@@ -112,7 +112,7 @@ hyperion/
 ├── configs/                      # Canonical JSON configurations
 │   ├── tpami_t2i_default.json    # Canonical T2I settings
 │   └── tpami_i2i_default.json    # Canonical I2I settings
-├── tests/                        # Comprehensive unit test suite (33 tests)
+├── tests/                        # Comprehensive unit test suite (54 tests)
 ├── pyproject.toml                # Packaging metadata
 ├── requirements.txt              # Production dependencies
 └── LICENSE                       # Apache 2.0 License
@@ -142,6 +142,12 @@ Hyperion operates on frozen MM-DiT backbones (primarily **FLUX.2-Klein-9B** or *
 ```bash
 # Download backbone and metric models
 python scripts/download_models.py --target all
+```
+
+### 3. Run Unit Tests
+Verify mathematical algorithms, metrics, attention controllers, and pipeline logic:
+```bash
+python -m unittest discover -s tests -v
 ```
 
 ---

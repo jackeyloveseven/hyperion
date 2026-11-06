@@ -26,6 +26,11 @@ class TestMetricsSpatial(unittest.TestCase):
         self.assertGreaterEqual(rho2, -1.0)
         self.assertLessEqual(rho2, 1.0)
 
+    def test_spatial_neighbor_correlation_2d_field(self):
+        field_2d = np.ones((16, 16), dtype=np.float32)
+        rho = compute_spatial_neighbor_correlation(field_2d, distance=1)
+        self.assertTrue(np.isclose(rho, 1.0, atol=1e-4))
+
 
 if __name__ == "__main__":
     unittest.main()

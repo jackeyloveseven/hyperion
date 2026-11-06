@@ -56,6 +56,17 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+### 2. 权重下载
+```bash
+python scripts/download_models.py --target all
+```
+
+### 3. 执行单元测试验证
+运行完整单元测试集（54 项单测，涵盖核心算法、注意力控制器与全部论文指标）：
+```bash
+python -m unittest discover -s tests -v
+```
+
 ---
 
 ## 🚀 命令行快速上手

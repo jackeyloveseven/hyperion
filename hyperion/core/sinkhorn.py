@@ -109,9 +109,9 @@ def sinkhorn_attn_freq(
     d = q.shape[-1]
     scale = (d ** 0.5) * max(tau, eps)
 
-    # Decompose into low-frequency (mean over sequence tokens) and high-frequency (residual)
-    q_lo = q.mean(dim=2, keepdim=True).expand_as(q)
-    k_lo = k_style.mean(dim=2, keepdim=True).expand_as(k_style)
+    # Decompose into low-frequency (mean over sequence tokens at dim -2) and high-frequency (residual)
+    q_lo = q.mean(dim=-2, keepdim=True)
+    k_lo = k_style.mean(dim=-2, keepdim=True)
     q_hi = q - q_lo
     k_hi = k_style - k_lo
 

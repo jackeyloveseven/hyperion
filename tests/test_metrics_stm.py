@@ -29,6 +29,16 @@ class TestMetricsSTM(unittest.TestCase):
         self.assertEqual(len(hist), 18)
         self.assertTrue(np.isclose(hist.sum(), 1.0, atol=1e-4))
 
+    def test_stm_even_blur_kernel(self):
+        rng = np.random.default_rng(42)
+        img1 = rng.uniform(0, 1, size=(64, 64)).astype(np.float32)
+        img2 = rng.uniform(0, 1, size=(64, 64)).astype(np.float32)
+
+        # Even kernel size (e.g. 8 and 10) must not cause shape mismatch
+        stm = compute_style_texture_match(img1, img2, blur_kernel=8)
+        self.assertGreaterEqual(stm, -1.0)
+        self.assertLessEqual(stm, 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

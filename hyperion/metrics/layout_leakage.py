@@ -18,15 +18,16 @@ def compute_patch_self_similarity_matrix(patch_tokens: torch.Tensor) -> torch.Te
     Computes spatial self-similarity matrix of patch tokens.
 
     Args:
-        patch_tokens: Patch embedding tensor of shape [N, D] or [1, N, D].
+        patch_tokens: Patch embedding tensor of shape [N, D] or [B, N, D].
 
     Returns:
-        Cosine similarity matrix of shape [N, N].
+        Cosine similarity matrix of shape [N, N] (if 2D or B=1) or [B, N, N].
     """
-    if patch_tokens.dim() == 3:
-        patch_tokens = patch_tokens.squeeze(0)
     p_norm = F.normalize(patch_tokens, dim=-1)
-    return torch.matmul(p_norm, p_norm.t())
+    sim = torch.matmul(p_norm, p_norm.transpose(-1, -2))
+    if sim.dim() == 3 and sim.shape[0] == 1:
+        sim = sim.squeeze(0)
+    return sim
 
 
 def compute_layout_leakage_from_patches(
@@ -38,8 +39,8 @@ def compute_layout_leakage_from_patches(
     Computes Pearson correlation between off-diagonal self-similarity entries.
 
     Args:
-        patches_out: Output image DINO patch tokens [N, D].
-        patches_style: Style reference DINO patch tokens [N, D].
+        patches_out: Output image DINO patch tokens [N, D] or [1, N, D].
+        patches_style: Style reference DINO patch tokens [N, D] or [1, N, D].
         eps: Small epsilon for numerical stability.
 
     Returns:
@@ -48,8 +49,18 @@ def compute_layout_leakage_from_patches(
     s_out = compute_patch_self_similarity_matrix(patches_out)
     s_sty = compute_patch_self_similarity_matrix(patches_style)
 
+    if s_out.dim() == 3:
+        s_out = s_out[0]
+    if s_sty.dim() == 3:
+        s_sty = s_sty[0]
+
+    n_out = s_out.shape[0]
+    n_sty = s_sty.shape[0]
+    if n_out <= 1 or n_sty <= 1:
+        return 0.0
+
     if s_out.shape != s_sty.shape:
-        target_n = max(s_out.shape[0], s_sty.shape[0])
+        target_n = max(n_out, n_sty)
         if s_out.shape[0] != target_n:
             s_out = F.interpolate(
                 s_out.unsqueeze(0).unsqueeze(0),

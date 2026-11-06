@@ -28,5 +28,6 @@
   "warm_adain_enabled": true,
   "adain_warm_alpha": 0.30,
   "terminal_color_correction": true,
+  "inject_beta": 0.50,
   "mode": "hybrid"
 }

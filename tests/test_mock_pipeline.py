@@ -7,12 +7,26 @@ from hyperion.pipeline.hyperion_pipeline import HyperionPipeline
 
 
 class MockDiT(nn.Module):
-    def __init__(self, in_channels=128):
+    def __init__(self, cache):
         super().__init__()
-        self.conv = nn.Linear(in_channels, in_channels)
+        self.conv = nn.Linear(128, 128)
+        self.cache = cache
 
-    def forward(self, hidden_states, timestep=None, guidance=None, encoder_hidden_states=None, txt_ids=None, img_ids=None):
-        return self.conv(hidden_states)
+    def forward(
+        self,
+        hidden_states,
+        timestep=None,
+        guidance=None,
+        encoder_hidden_states=None,
+        txt_ids=None,
+        img_ids=None,
+    ):
+        out = self.conv(hidden_states)
+        b, l, c = hidden_states.shape
+        q = hidden_states.reshape(b, 2, l, c // 2)
+        so = out.reshape(b, 2, l, c // 2)
+        self.cache.add(q, q, q, so)
+        return out
 
 
 class MockVAE(nn.Module):
@@ -27,7 +41,7 @@ class MockVAE(nn.Module):
 
 class MockPipelineObj:
     def __init__(self):
-        self.dit = MockDiT()
+        self.dit = None
         self.vae = MockVAE()
         self.torch_dtype = torch.float32
 
@@ -44,20 +58,19 @@ class MockPipelineObj:
 
 class TestMockPipeline(unittest.TestCase):
 
-    def test_mock_pipeline_run(self):
-        mock_pipe = MockPipelineObj()
-        pipe = HyperionPipeline(pipe=mock_pipe, backbone_type="custom", device="cpu", torch_dtype=torch.float32)
+    def setUp(self):
+        self.mock_pipe = MockPipelineObj()
+        self.pipe = HyperionPipeline(
+            pipe=self.mock_pipe,
+            backbone_type="custom",
+            device="cpu",
+            torch_dtype=torch.float32,
+        )
+        self.mock_pipe.dit = MockDiT(self.pipe.cache)
+        self.dummy_style = Image.new("RGB", (64, 64), color="red")
+        self.dummy_content = Image.new("RGB", (64, 64), color="green")
 
-        # Mock query, key, value, out in cache so Adam loss step doesn't fail
-        def mock_step_hooks():
-            pipe.cache.add(
-                torch.randn(1, 2, 16, 16),
-                torch.randn(1, 2, 16, 16),
-                torch.randn(1, 2, 16, 16),
-                torch.randn(1, 2, 16, 16),
-            )
-
-        # Config with very small steps for testing
+    def test_mock_pipeline_t2i_hybrid(self):
         cfg = HyperionConfig.t2i_default(
             width=64,
             height=64,
@@ -66,14 +79,59 @@ class TestMockPipeline(unittest.TestCase):
             adam_iters=1,
             slt_iters=2,
             ot_iters=2,
+            mode="hybrid",
         )
+        img = self.pipe.generate_t2i("A test prompt", self.dummy_style, config=cfg)
+        self.assertIsInstance(img, Image.Image)
+        self.assertEqual(img.size, (64, 64))
 
-        dummy_style = Image.new("RGB", (64, 64), color="red")
-        dummy_content = Image.new("RGB", (64, 64), color="green")
+    def test_mock_pipeline_i2i_hybrid(self):
+        cfg = HyperionConfig.i2i_default(
+            width=64,
+            height=64,
+            num_inference_steps=2,
+            start_time=999,
+            adam_iters=1,
+            slt_iters=2,
+            ot_iters=2,
+            mode="hybrid",
+        )
+        img = self.pipe.generate_i2i(
+            content_image=self.dummy_content,
+            style_image=self.dummy_style,
+            prompt="masterpiece",
+            config=cfg,
+        )
+        self.assertIsInstance(img, Image.Image)
+        self.assertEqual(img.size, (64, 64))
 
-        # Verify load_image helper
-        loaded_img = pipe._load_image(dummy_style, (64, 64))
-        self.assertEqual(loaded_img.size, (64, 64))
+    def test_mock_pipeline_injection_and_vshuffle(self):
+        for mode in ("inject", "vshuffle"):
+            cfg = HyperionConfig.t2i_default(
+                width=64,
+                height=64,
+                num_inference_steps=2,
+                start_time=999,
+                mode=mode,
+            )
+            img = self.pipe.generate_t2i("A test prompt", self.dummy_style, config=cfg)
+            self.assertIsInstance(img, Image.Image)
+            self.assertEqual(img.size, (64, 64))
+
+    def test_mock_pipeline_slt_and_adam_only(self):
+        for mode in ("slt_only", "adam_only"):
+            cfg = HyperionConfig.t2i_default(
+                width=64,
+                height=64,
+                num_inference_steps=2,
+                start_time=999,
+                adam_iters=1,
+                slt_iters=2,
+                mode=mode,
+            )
+            img = self.pipe.generate_t2i("A test prompt", self.dummy_style, config=cfg)
+            self.assertIsInstance(img, Image.Image)
+            self.assertEqual(img.size, (64, 64))
 
 
 if __name__ == "__main__":

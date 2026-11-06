@@ -21,8 +21,9 @@ def _uniform_filter(img: np.ndarray, size: int = 9) -> np.ndarray:
         import scipy.ndimage as ndi
         return ndi.uniform_filter(img, size=size)
     except ImportError:
-        pad = size // 2
-        padded = np.pad(img, pad, mode="reflect")
+        pad_before = (size - 1) // 2
+        pad_after = size // 2
+        padded = np.pad(img, ((pad_before, pad_after), (pad_before, pad_after)), mode="reflect")
         kernel = np.ones(size, dtype=np.float32) / size
         # Separable 1D filtering across rows then cols
         tmp = np.apply_along_axis(lambda m: np.convolve(m, kernel, mode="valid"), axis=1, arr=padded)

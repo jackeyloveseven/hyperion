@@ -36,6 +36,18 @@ class TestMetricsLeakage(unittest.TestCase):
         self.assertGreaterEqual(leak, -1.0)
         self.assertLessEqual(leak, 1.0)
 
+    def test_batched_self_similarity_matrix(self):
+        b, n, d = 2, 16, 32
+        patches = torch.randn(b, n, d)
+        sim = compute_patch_self_similarity_matrix(patches)
+        self.assertEqual(sim.shape, (b, n, n))
+
+    def test_layout_leakage_single_patch(self):
+        patches1 = torch.randn(1, 32)
+        patches2 = torch.randn(1, 32)
+        leak = compute_layout_leakage_from_patches(patches1, patches2)
+        self.assertEqual(leak, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

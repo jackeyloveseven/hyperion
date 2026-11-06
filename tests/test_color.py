@@ -25,6 +25,16 @@ class TestColor(unittest.TestCase):
         self.assertTrue(torch.allclose(out.mean(dim=1), tgt.mean(dim=1), atol=0.01))
         self.assertTrue(torch.allclose(out.std(dim=1), tgt.std(dim=1), atol=0.01))
 
+    def test_adain_4d_latents(self):
+        torch.manual_seed(42)
+        b, c, h, w = 1, 16, 8, 8
+        src = torch.randn(b, c, h, w) * 2.0 + 3.0
+        tgt = torch.randn(b, c, h, w) * 0.5 - 1.0
+
+        out = adain_1d(src, tgt)
+        self.assertEqual(out.shape, (b, c, h, w))
+        self.assertTrue(torch.allclose(out.mean(dim=(-2, -1)), tgt.mean(dim=(-2, -1)), atol=0.01))
+
 
 if __name__ == "__main__":
     unittest.main()
